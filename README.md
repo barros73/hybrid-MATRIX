@@ -1,30 +1,30 @@
 # 🧊 hybrid-MATRIX
 **The Deterministic Traceability Engine: Bridging Architectural Intent with Physical Code.**
 
-In codebase di grandi dimensioni (30k+ righe, monorepo, ecosistemi ibridi), mantenere la coerenza tra ciò che è stato progettato e ciò che è stato scritto è la sfida più grande. I ticket vengono chiusi, il codice muta, e il contesto si perde.
+In large-scale codebases (30k+ lines, monorepos, hybrid ecosystems), maintaining consistency between what was designed and what was written is the greatest challenge. Tickets are closed, code mutates, and context is lost.
 
-hybrid-MATRIX è il motore di tracciabilità in tempo reale (l'Asse Z) che connette i requisiti di progetto al codice sorgente. Nessuna supposizione AI, nessun database vettoriale probabilistico: solo determinismo puro e contratti architetturali di ferro.
+hybrid-MATRIX is the real-time traceability engine (the Z-Axis) that connects project requirements to source code. No AI assumptions, no probabilistic vector databases: just pure determinism and ironclad architectural contracts.
 
 🏗️ The "3D" Ecosystem
-hybrid-MATRIX fa parte di una suite di orchestrazione a tre livelli, progettata per ambienti cloud (come Google Antigravity / IDX) e per codebase ibride (Rust, C++, Python, ecc.):
+hybrid-MATRIX is part of a three-tier orchestration suite designed for cloud environments (like Google Antigravity / IDX) and hybrid codebases (Rust, C++, Python, etc.):
 
-*   **Layer 1 (L'Intento):** [hybrid-TREE](file:///home/ingbaroni/hybrid/hybrid-TREE) - Il livello semantico. Checklist Markdown, requisiti e project management.
-*   **Layer 2 (Il Ponte):** **hybrid-MATRIX** - Questo modulo. L'ascensore che collega in modo rigido l'intento al silicio.
-*   **Layer 3 (La Realtà):** [hybrid-RCP](file:///home/ingbaroni/hybrid/hybrid-RCP) - Il parser del codice sorgente che valida la sintassi e previene i conflitti (Ownership, Memory Leaks).
+*   **Layer 1 (The Intent):** [hybrid-TREE](file:///home/ingbaroni/hybrid/hybrid-TREE) - The semantic layer. Markdown checklists, requirements, and project management.
+*   **Layer 2 (The Bridge):** **hybrid-MATRIX** - This module. The elevator that rigidly connects intent to silicon.
+*   **Layer 3 (The Reality):** [hybrid-RCP](file:///home/ingbaroni/hybrid/hybrid-RCP) - The source code parser that validates syntax and prevents conflicts (Ownership, Memory Leaks).
 
 ✨ Core Features
-🔒 **Doppia Validazione (Belt & Suspenders):** Un collegamento è valido solo se il file `hybrid-matrix.json` dichiara la rotta (Top-Down) E il parser trova fisicamente il tag nel codice sorgente (es. `// @MATRIX: REQ-01`) (Bottom-Up). Se sposti un file e dimentichi di aggiornare l'architettura, il sistema va in allarme.
+🔒 **Double Validation (Belt & Suspenders):** A link is only valid if the `hybrid-matrix.json` file declares the route (Top-Down) AND the parser physically finds the tag in the source code (e.g., `// @MATRIX: REQ-01`) (Bottom-Up). If you move a file and forget to update the architecture, the system triggers an alarm.
 
-🔀 **Cardinalità Complessa:** Supporta nativamente relazioni 1:1, 1:N (un task genera 50 file) e N:1 (10 requisiti di sicurezza puntano a un solo costrutto Core).
+🔀 **Complex Cardinality:** Natively supports 1:1, 1:N (one task generates 50 files), and N:1 (10 security requirements pointing to a single Core construct) relationships.
 
-🕵️ **Analisi degli Orfani:** Il motore esegue una scansione continua restituendo due metriche vitali:
-*   **Missing Code (Ascensore rotto in alto):** Requisiti approvati che non hanno riscontro nel codice.
-*   **Zombie Code (Ascensore rotto in basso):** Codice esistente e taggato, ma il cui requisito originale è stato cancellato.
+🕵️ **Orphan Analysis:** The engine performs a continuous scan, returning two vital metrics:
+*   **Missing Code (Broken elevator at the top):** Approved requirements with no corresponding code.
+*   **Zombie Code (Broken elevator at the bottom):** Existing and tagged code whose original requirement has been deleted.
 
-🤖 **AI-Proof:** Sviluppato per impedire le "allucinazioni" dei modelli LLM. MATRIX fornisce agli agenti AI (come quelli di Antigravity) una mappa inattaccabile dei collegamenti, dicendo all'AI esattamente dove si trova un blocco logico, senza farle tirare a indovinare.
+🤖 **AI-Proof:** Developed to prevent LLM "hallucinations." MATRIX provides AI agents (like those in Antigravity) with an unassailable map of connections, telling the AI exactly where a logical block is located without making it guess.
 
-⚙️ Come Funziona (The Matrix JSON)
-Il cuore del sistema è un multiplexer JSON versionato su Git (dentro `.hybrid/`), che funge da unica fonte di verità (Single Source of Truth):
+⚙️ How It Works (The Matrix JSON)
+The core of the system is a Git-versioned JSON multiplexer (inside `.hybrid/`), acting as the Single Source of Truth:
 
 ```json
 {
@@ -42,7 +42,7 @@ Il cuore del sistema è un multiplexer JSON versionato su Git (dentro `.hybrid/`
 }
 ```
 
-E nel tuo codice (Layer 3):
+And in your code (Layer 3):
 
 ```rust
 // @MATRIX: REQ-SEC-01, REQ-NET-05
@@ -53,18 +53,18 @@ pub struct GatewayManager {
 
 🚀 Getting Started
 
-### Installazione
-1. Clona il repository.
-2. Esegui `npm install`.
-3. Compila il progetto con `npm run compile`.
+### Installation
+1. Clone the repository.
+2. Run `npm install`.
+3. Compile the project with `npm run compile`.
 
-### Utilizzo CLI
-Puoi interagire con MATRIX direttamente dal terminale (perfetto per script AI):
-*   `hybrid-matrix sync`: Scansiona `MASTER_PROJECT_TREE.md`, assegna ID e valida i link esistenti.
-*   `hybrid-matrix inject`: Inserisce automaticamente i tag `@MATRIX` mancanti nel codice sorgente.
+### CLI Usage
+Interact with MATRIX directly from the terminal (perfect for AI scripts):
+*   `hybrid-matrix sync`: Scans `MASTER_PROJECT_TREE.md`, assigns IDs, and validates existing links.
+*   `hybrid-matrix inject`: Automatically inserts missing `@MATRIX` tags into the source code.
 
-### Utilizzo VS Code
-Installa come estensione per avere accesso ai comandi:
+### VS Code Usage
+Install as an extension for command access:
 *   `Hybrid Matrix: Sync & Validate`
 *   `Hybrid Matrix: Inject Tags`
 
