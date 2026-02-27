@@ -1,3 +1,20 @@
+/*
+ * hybrid-MATRIX - The Deterministic Traceability Engine
+ * Copyright 2026 Fabrizio Baroni
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import * as fs from 'fs';
 import { Layer3Target } from '../core/types';
 
@@ -12,7 +29,9 @@ export class TagInjector {
 
         let content = fs.readFileSync(target.file_path, 'utf-8');
         const lines = content.split('\n');
-        const tag = this.formatTag(target.language, ids);
+        const tag = target.expected_tag.startsWith('//') || target.expected_tag.startsWith('#')
+            ? target.expected_tag
+            : this.formatRawTag(target.language, target.expected_tag);
 
         if (content.includes(tag)) return true; // Already exists
 
@@ -36,19 +55,12 @@ export class TagInjector {
         return true;
     }
 
-    private formatTag(language: string, ids: string[]): string {
-        const idString = ids.join(', ');
+    private formatRawTag(language: string, tag: string): string {
         switch (language) {
             case 'python':
-                return `# @MATRIX: ${idString}`;
-            case 'rust':
-            case 'cpp':
-            case 'typescript':
-            case 'javascript':
-            case 'go':
-                return `// @MATRIX: ${idString}`;
+                return `# ${tag}`;
             default:
-                return `// @MATRIX: ${idString}`;
+                return `// ${tag}`;
         }
     }
 }

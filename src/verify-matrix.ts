@@ -54,7 +54,7 @@ pub fn login() {
     };
 
     const validator = new MatrixValidator(matrixPath);
-    const validatedStore = await validator.validate(store as any);
+    const validatedStore = await validator.validate(store as any, workspace);
     console.log("Status after first validation (should be BROKEN):", validatedStore.links[0].status);
 
     console.log("\n--- Phase 3: Injection ---");
@@ -63,7 +63,7 @@ pub fn login() {
     console.log("Code after injection:\n", fs.readFileSync(codePath, 'utf-8'));
 
     console.log("\n--- Phase 4: Validate (VALID) ---");
-    const finalStore = await validator.validate(validatedStore);
+    const finalStore = await validator.validate(validatedStore, workspace);
     console.log("Status after injection (should be VALID):", finalStore.links[0].status);
 }
 

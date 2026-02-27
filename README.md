@@ -51,22 +51,28 @@ pub struct GatewayManager {
 }
 ```
 
-🚀 Getting Started
+## Ecosystem Usage
 
-### Installation
-1. Clone the repository.
-2. Run `npm install`.
-3. Compile the project with `npm run compile`.
+The `hybrid` ecosystem works in three stages to bridge documentation and code.
 
-### CLI Usage
-Interact with MATRIX directly from the terminal (perfect for AI scripts):
-*   `hybrid-matrix sync`: Scans `MASTER_PROJECT_TREE.md`, assigns IDs, and validates existing links.
-*   `hybrid-matrix inject`: Automatically inserts missing `@MATRIX` tags into the source code.
+### 1. Snapshot Code Structure
+Run this inside your project directory to extract the physical architecture into a high-fidelity JSON map.
+```bash
+node /path/to/hybrid-RCP/dist/cli.js export-structure .
+```
 
-### VS Code Usage
-Install as an extension for command access:
-*   `Hybrid Matrix: Sync & Validate`
-*   `Hybrid Matrix: Inject Tags`
+### 2. Consolidate Manifest (Automatic Tree)
+This command automatically parses all Markdown files in `docs/feature_trees/` and creates a consolidated `hybrid-tree.json`. It also detects "orphan" code files not yet documented.
+```bash
+node /path/to/hybrid-TREE/dist/cli.js consolidate
+```
+
+### 3. Connect Requirements to Code
+Bridge the logical tree and the physical code structure to generate a deterministic traceability matrix.
+```bash
+node /path/to/hybrid-MATRIX/dist/cli.js connect -w .
+```
 
 ---
-*License: GPL-3.0-only*
+
+*License: Apache-2.0*
