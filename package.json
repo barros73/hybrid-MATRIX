@@ -1,0 +1,38 @@
+{
+    "name": "hybrid-matrix",
+    "displayName": "Hybrid Matrix",
+    "description": "Deterministic Traceability Engine for the Hybrid Ecosystem",
+    "version": "0.1.0",
+    "license": "GPL-3.0-only",
+    "bin": {
+        "hybrid-matrix": "./dist/cli.js"
+    },
+    "engines": {
+        "vscode": "^1.80.0"
+    },
+    "main": "./out/extension.js",
+    "activationEvents": [],
+    "contributes": {
+        "commands": [
+            {
+                "command": "hybrid-matrix.sync",
+                "title": "Hybrid Matrix: Sync & Validate"
+            },
+            {
+                "command": "hybrid-matrix.inject",
+                "title": "Hybrid Matrix: Inject Tags"
+            }
+        ]
+    },
+    "scripts": {
+        "vscode:prepublish": "npm run compile",
+        "compile": "tsc -p ./",
+        "watch": "tsc -watch -p ./",
+        "test": "echo \"Error: no test specified\" && exit 1"
+    },
+    "devDependencies": {
+        "@types/node": "20.2.5",
+        "@types/vscode": "^1.80.0",
+        "typescript": "^5.9.3"
+    }
+}
