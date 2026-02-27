@@ -1,0 +1,28 @@
+title: Hybrid Ecosystem
+description: Deterministic Traceability & AI-Agentic Development
+remote_theme: pages-themes/minimal@v0.2.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+google_analytics:
+#  id: UA-XXXXXXXXX-X
+
+# Build settings
+markdown: kramdown
+theme: minima
+
+header_pages:
+  - index.md
+  - docs/index.md
+
+exclude:
+  - Gemfile
+  - Gemfile.lock
+  - node_modules
+  - vendor/bundle/
+  - vendor/cache/
+  - vendor/gems/
+  - vendor/ruby/
+  - .hybrid/
+  - hybrid-*/
