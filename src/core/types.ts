@@ -12,6 +12,7 @@ export interface Layer3Target {
     construct_name?: string;
     language: 'rust' | 'cpp' | 'python' | 'typescript' | 'javascript' | 'go';
     expected_tag: string; // e.g., "@MATRIX: REQ-SEC-01"
+    expected_hash?: string; // AST-stable logical hash
 }
 
 export interface MatrixStore {

@@ -18,20 +18,25 @@
 
 import * as path from 'path';
 import * as fs from 'fs';
+import { execSync } from 'child_process';
 import { IdManager } from './core/IdManager';
 import { MatrixValidator } from './core/MatrixValidator';
 import { TagInjector } from './injector/TagInjector';
 import { MatrixStore } from './core/types';
+import { ContextExtractor } from './ai/ContextExtractor';
+import { ImpactSimulator } from './ai/ImpactSimulator';
 
 const args = process.argv.slice(2);
 const command = args[0];
 let workspaceRoot = process.cwd();
 
-// Parse workspace root flag (-w)
+// Parse flags
 const wIndex = args.indexOf('-w');
 if (wIndex !== -1 && args[wIndex + 1]) {
     workspaceRoot = path.resolve(args[wIndex + 1]);
 }
+
+const aiFormat = args.includes('--ai-format');
 
 const hybridDir = path.join(workspaceRoot, '.hybrid');
 const matrixPath = path.join(hybridDir, 'hybrid-matrix.json');
@@ -47,9 +52,47 @@ async function run() {
     const injector = new TagInjector();
 
     switch (command) {
+        // AI "Laser Sight": Extracts high-density context for a specific node
+        case 'extract-context':
+            const nodeId = args[1] === '-w' ? args[3] : args[1];
+            if (!nodeId) {
+                console.error('Usage: hybrid-matrix extract-context <node-id>');
+                process.exit(1);
+            }
+            const context = await ContextExtractor.extract(workspaceRoot, nodeId);
+            if (aiFormat) {
+                console.log(JSON.stringify(context));
+            } else {
+                console.log('🌌 AI Laser Sight: Context for ' + nodeId);
+                console.log(JSON.stringify(context, null, 2));
+            }
+            break;
+
+        // AI "Dry-Run": Simulates architectural impact of a code patch
+        case 'simulate':
+            const patchPath = args[1] === '-w' ? args[3] : args[1];
+            if (!patchPath) {
+                console.error('Usage: hybrid-matrix simulate <patch-path>');
+                process.exit(1);
+            }
+            const patchContent = fs.readFileSync(path.resolve(patchPath), 'utf8');
+            const simulator = new ImpactSimulator();
+            const result = await simulator.simulate(workspaceRoot, patchContent);
+            if (aiFormat) {
+                console.log(JSON.stringify(result));
+            } else {
+                if (result.status === 'SAFE_TO_APPLY') {
+                    console.log('✅ Simulation: No architectural violations detected.');
+                } else {
+                    console.log('⚠️  SIMULATION ALERT: Potential Architectural Violations Found!');
+                    result.violations.forEach(v => console.log('  - ' + v));
+                }
+            }
+            break;
+
         // Synchronizes IDs between code and manifest, and validates all existing links
         case 'sync':
-            console.log('Hybrid Matrix: Syncing IDs and Validating...');
+            if (!aiFormat) console.log('Hybrid Matrix: Syncing IDs and Validating...');
             idManager.syncIdsWithManifest(manifestPath);
 
             let store: MatrixStore = {
@@ -65,14 +108,19 @@ async function run() {
             // Perform high-fidelity validation using RCP structures
             const updatedStore = await validator.validate(store, workspaceRoot);
             fs.writeFileSync(matrixPath, JSON.stringify(updatedStore, null, 2));
-            console.log(`Sync Complete. Validated ${updatedStore.links.length} links.`);
+            if (aiFormat) {
+                console.log(JSON.stringify({ status: 'success', validated_links: updatedStore.links.length }));
+            } else {
+                console.log(`Sync Complete. Validated ${updatedStore.links.length} links.`);
+            }
             break;
 
         // Injects @MATRIX: tags into source code for broken links
         case 'inject':
-            console.log('Hybrid Matrix: Injecting Tags...');
+            if (!aiFormat) console.log('Hybrid Matrix: Injecting Tags...');
             if (!fs.existsSync(matrixPath)) {
-                console.error('Error: No hybrid-matrix.json found. Run sync first.');
+                if (aiFormat) console.log(JSON.stringify({ error: 'hybrid-matrix.json not found' }));
+                else console.error('Error: No hybrid-matrix.json found. Run sync first.');
                 process.exit(1);
             }
 
@@ -86,21 +134,27 @@ async function run() {
                     }
                 }
             }
-            console.log(`Injected ${injectCount} tags.`);
+            if (aiFormat) {
+                console.log(JSON.stringify({ status: 'success', injected_count: injectCount }));
+            } else {
+                console.log(`Injected ${injectCount} tags.`);
+            }
             break;
 
         // Automatically generates traceability links by bridging hybrid-tree.json (Requirements) and hybrid-rcp.json (Code)
         case 'connect':
-            console.log('Hybrid Matrix: Bridging Requirements (Tree) to Code (RCP)...');
+            if (!aiFormat) console.log('Hybrid Matrix: Bridging Requirements (Tree) to Code (RCP)...');
             const treePath = path.join(hybridDir, 'hybrid-tree.json');
             const rcpPath = path.join(hybridDir, 'hybrid-rcp.json');
 
             if (!fs.existsSync(treePath)) {
-                console.log(`Error: hybrid-tree.json not found. Run "hybrid-tree consolidate" first.`);
+                if (aiFormat) console.log(JSON.stringify({ error: 'hybrid-tree.json not found' }));
+                else console.log(`Error: hybrid-tree.json not found. Run "hybrid-tree consolidate" first.`);
                 process.exit(1);
             }
             if (!fs.existsSync(rcpPath)) {
-                console.log(`Error: hybrid-rcp.json not found. Run "hybrid-rcp export-structure" first.`);
+                if (aiFormat) console.log(JSON.stringify({ error: 'hybrid-rcp.json not found' }));
+                else console.log(`Error: hybrid-rcp.json not found. Run "hybrid-rcp export-structure" first.`);
                 process.exit(1);
             }
 
@@ -111,7 +165,6 @@ async function run() {
             const extractReqs = (items: any[]): string[] => {
                 let ids: string[] = [];
                 for (const item of items) {
-                    // Extract IDs from labels like "[AC.1.1] Title" or just "AC.1.1"
                     const match = item.label.match(/([A-Z0-9]+(?:\.[A-Z0-9]+)+)/);
                     if (match) ids.push(match[1]);
                     if (item.children && item.children.length > 0) {
@@ -121,8 +174,8 @@ async function run() {
                 return Array.from(new Set(ids));
             };
 
-            const reqIds = extractReqs(treeData.manifest);
-            console.log(`Extracted ${reqIds.length} requirements from ${treePath}`);
+            const reqIds = extractReqs(treeData.manifest || treeData.nodes || []);
+            if (!aiFormat) console.log(`Extracted ${reqIds.length} requirements from ${treePath}`);
 
             let connectStore: MatrixStore = {
                 matrix_version: "1.0",
@@ -134,33 +187,18 @@ async function run() {
                 connectStore = JSON.parse(fs.readFileSync(matrixPath, 'utf-8'));
             }
 
-            // Mapping rules between requirement prefixes and project crates/modules
             const mappingRules: Record<string, string> = {
-                "A.": "core_shared",
-                "B.": "geo_engine",
-                "C.": "core_shared/src/bim",
-                "D.": "fem_solver",
-                "E.": "fem_solver",
-                "F.": "reinforcement",
-                "G.": "reinforcement",
-                "H.": "reinforcement",
-                "I.": "ui_client",
-                "J.": "ui_client",
-                "K.": "ui_client",
-                "L.": "report_engine",
-                "M.": "ui_client",
-                "N.": "core_db",
-                "O.": "core_db",
-                "P.": "node_engine",
-                "Q.": "node_engine",
-                "R.": "server_core",
-                "S.": "server_core",
-                "AC.": "core_db/src/fabrication"
+                "A.": "core_shared", "B.": "geo_engine", "C.": "core_shared/src/bim",
+                "D.": "fem_solver", "E.": "fem_solver", "F.": "reinforcement",
+                "G.": "reinforcement", "H.": "reinforcement", "I.": "ui_client",
+                "J.": "ui_client", "K.": "ui_client", "L.": "report_engine",
+                "M.": "ui_client", "N.": "core_db", "O.": "core_db",
+                "P.": "node_engine", "Q.": "node_engine", "R.": "server_core",
+                "S.": "server_core", "AC.": "core_db/src/fabrication"
             };
 
             let connectCount = 0;
             for (const reqId of reqIds) {
-                // Skip if already linked
                 if (connectStore.links.some(l => l.layer1_sources.includes(reqId))) continue;
 
                 let targetCrate = "";
@@ -193,21 +231,24 @@ async function run() {
                 }
             }
 
-            // Gap Analysis
             const unmapped = reqIds.filter(id => !connectStore.links.some(l => l.layer1_sources.includes(id)));
-            if (unmapped.length > 0) {
-                console.log(`⚠️  Gap Analysis: ${unmapped.length} requirements have no code constructs mapped.`);
-            }
 
             fs.writeFileSync(matrixPath, JSON.stringify(connectStore, null, 2));
-            console.log(`✅ Bridge Updated: ${connectCount} new links added to hybrid-matrix.json`);
+
+            if (aiFormat) {
+                console.log(JSON.stringify({ status: 'success', new_links: connectCount, gaps: unmapped.length }));
+            } else {
+                if (unmapped.length > 0) console.log(`⚠️  Gap Analysis: ${unmapped.length} requirements have no code constructs mapped.`);
+                console.log(`✅ Bridge Updated: ${connectCount} new links added to hybrid-matrix.json`);
+            }
             break;
 
         // Generates a high-level Health Score report for the ecosystem
         case 'report':
-            console.log('Hybrid Matrix: Generating Ecosystem Health Report...');
+            if (!aiFormat) console.log('Hybrid Matrix: Generating Ecosystem Health Report...');
             if (!fs.existsSync(matrixPath)) {
-                console.error('Error: No hybrid-matrix.json found. Run connect first.');
+                if (aiFormat) console.log(JSON.stringify({ error: 'hybrid-matrix.json not found' }));
+                else console.error('Error: No hybrid-matrix.json found. Run connect first.');
                 process.exit(1);
             }
 
@@ -215,19 +256,78 @@ async function run() {
             const totalLinks = reportStore.links.length;
             const validLinks = reportStore.links.filter(l => l.status === 'VALID').length;
             const brokenLinks = totalLinks - validLinks;
-
-            // Extract unmapped requirements from the store's orphan data
             const unmappedReqs = reportStore.orphans?.unlinked_requirements?.length || 0;
-
             const healthScore = totalLinks > 0 ? Math.round((validLinks / totalLinks) * 100) : 0;
 
-            console.log('\n--- HYBRID ECOSYSTEM HEALTH REPORT ---');
-            console.log(`🟢 Traceability Integrity: ${healthScore}%`);
-            console.log(`🔗 Total Links: ${totalLinks}`);
-            console.log(`✅ Validated: ${validLinks}`);
-            console.log(`🔴 Broken/Pending: ${brokenLinks}`);
-            console.log(`⚠️  Documentation Gaps: ${unmappedReqs} requirements without code`);
-            console.log('-------------------------------------\n');
+            if (aiFormat) {
+                console.log(JSON.stringify({
+                    health_score: healthScore,
+                    total_links: totalLinks,
+                    valid: validLinks,
+                    broken: brokenLinks,
+                    gaps: unmappedReqs
+                }));
+            } else {
+                const reportOutput = `
+--- HYBRID ECOSYSTEM HEALTH REPORT ---
+🟢 Traceability Integrity: ${healthScore}%
+🔗 Total Links: ${totalLinks}
+✅ Validated: ${validLinks}
+🔴 Broken/Pending: ${brokenLinks}
+⚠️  Documentation Gaps: ${unmappedReqs} requirements without code
+-------------------------------------
+`;
+                console.log(reportOutput);
+                const logPath = path.join(hybridDir, 'matrix-report.log');
+                const timestampedOutput = `[${new Date().toISOString()}]\n${reportOutput.trim()}\n\n`;
+                fs.appendFileSync(logPath, timestampedOutput);
+                console.log(`Report appended at: ${logPath}`);
+            }
+            break;
+
+        // Watch Mode: Background orchestrator that monitors files and updates the ecosystem
+        case 'watch':
+            console.log('👀 Hybrid Matrix: Entering Watch Mode (Background Orchestrator)...');
+            console.log('Monitoring .rs files, .md files, and .hybrid/ artifacts.');
+
+            const rcpExec = `node ${path.join(__dirname, '../../hybrid-RCP/dist/cli.js')} export-structure ${workspaceRoot}`;
+            const treeExec = `node ${path.join(__dirname, '../../hybrid-TREE/dist/cli.js')} consolidate`;
+
+            // Function to trigger a full ecosystem refresh
+            const refresh = async (source: string) => {
+                console.log(`\n🔄 Change detected in ${source}. Refreshing ecosystem...`);
+                try {
+                    if (source.endsWith('.rs')) {
+                        console.log('⚡ Triggering RCP Scan...');
+                        execSync(rcpExec, { stdio: 'inherit' });
+                    }
+                    if (source.endsWith('.md')) {
+                        console.log('⚡ Triggering TREE Consolidation...');
+                        execSync(treeExec, { stdio: 'inherit', cwd: workspaceRoot });
+                    }
+
+                    console.log('⚡ Synchronizing Matrix Links...');
+                    const syncStore = JSON.parse(fs.readFileSync(matrixPath, 'utf-8'));
+                    const updatedSyncStore = await validator.validate(syncStore, workspaceRoot);
+                    fs.writeFileSync(matrixPath, JSON.stringify(updatedSyncStore, null, 2));
+                    console.log('✅ Ecosystem Synchronized.');
+                } catch (e) {
+                    console.error('❌ Error during background sync:', e);
+                }
+            };
+
+            // Watch for Rust changes
+            fs.watch(workspaceRoot, { recursive: true }, (event, filename) => {
+                if (filename && filename.endsWith('.rs') && !filename.includes('target')) {
+                    refresh(filename);
+                }
+                if (filename && filename.endsWith('.md') && !filename.includes('.hybrid')) {
+                    refresh(filename);
+                }
+            });
+
+            // Keep the process alive
+            process.stdin.resume();
             break;
 
         default:

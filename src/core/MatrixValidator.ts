@@ -84,22 +84,36 @@ export class MatrixValidator {
         }
         console.log(`Tag found: ${target.expected_tag}`);
 
-        // 2. Semantic Check (if RCP structure is available)
+        // 2. Semantic & Hash Check (if RCP structure is available)
         if (rcpStructure && target.construct_name) {
-            // Find the file in RCP structure
             const node = rcpStructure.nodes.find((n: any) => n.id === target.file_path || n.filePath === target.file_path);
             if (!node) {
                 console.log(`Node not found in RCP structure for: ${target.file_path}`);
                 return false;
             }
-            // Check if the construct exists in exports/outputs
-            const hasConstruct = node.outputs?.some((o: any) => o.name === target.construct_name) ||
-                node.data?.some((d: any) => d.name === target.construct_name);
 
-            if (!hasConstruct) {
+            // Find the specific construct (struct or fn)
+            const construct = node.outputs?.find((o: any) => o.name === target.construct_name) ||
+                node.data?.find((d: any) => d.name === target.construct_name);
+
+            if (!construct) {
                 console.log(`Construct ${target.construct_name} not found in node ${node.id}`);
+                return false;
             }
-            return hasConstruct;
+
+            // AST HASH VALIDATION (War Machine Requirement #4)
+            if (target.expected_hash && construct.logicHash) {
+                if (target.expected_hash === construct.logicHash) {
+                    console.log(`✅ AST Hash Match: ${target.construct_name} logic is stable.`);
+                    return true;
+                } else {
+                    console.log(`⚠️  AST Hash Mismatch for ${target.construct_name}: Logic has changed!`);
+                    // Even if the tag is there, if the hash changed, we might flag it depending on strictness
+                    // For now, we allow the tag to win but warn about logic changes
+                }
+            }
+
+            return true;
         }
 
         return true;

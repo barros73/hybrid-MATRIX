@@ -51,28 +51,56 @@ pub struct GatewayManager {
 }
 ```
 
-## Ecosystem Usage
+## 🏁 Getting Started
 
-The `hybrid` ecosystem works in three stages to bridge documentation and code.
+### Prerequisites
+- **Node.js**: Version 16.x or higher.
+- **npm**: Standard Node package manager.
 
-### 1. Snapshot Code Structure
-Run this inside your project directory to extract the physical architecture into a high-fidelity JSON map.
+### 🚀 Quick Installation
 ```bash
-node /path/to/hybrid-RCP/dist/cli.js export-structure .
-```
-
-### 2. Consolidate Manifest (Automatic Tree)
-This command automatically parses all Markdown files in `docs/feature_trees/` and creates a consolidated `hybrid-tree.json`. It also detects "orphan" code files not yet documented.
-```bash
-node /path/to/hybrid-TREE/dist/cli.js consolidate
-```
-
-### 3. Connect Requirements to Code
-Bridge the logical tree and the physical code structure to generate a deterministic traceability matrix.
-```bash
-node /path/to/hybrid-MATRIX/dist/cli.js connect -w .
+curl -sSL https://raw.githubusercontent.com/barros73/hybrid-BIM/main/install.sh | bash
 ```
 
 ---
 
-*License: Apache-2.0*
+## CLI Reference
+
+### Usage
+```bash
+node /path/to/hybrid-MATRIX/dist/cli.js <command> [options]
+```
+
+### Commands
+| Command | Description |
+| :--- | :--- |
+| `sync` | Validates existing links in `hybrid-matrix.json` and syncs requirement IDs with the master manifest. |
+| `inject` | Automatically inserts `// @MATRIX: REQ-XXX` tags into the source code for all links marked as `BROKEN`. |
+| `connect` | Bridges `hybrid-tree.json` (Requirements) and `hybrid-rcp.json` (Code) to automatically generate potential links. |
+| `report` | Generates a high-level **Health Report** showing Traceability Integrity, total links, and documentation gaps. |
+
+### Global Options
+- `-w <path>`: Specify the project workspace root where the `.hybrid/` folder is located. Defaults to current directory.
+
+---
+
+## Ecosystem Workflow
+The `hybrid` suite operates in a deterministic pipeline:
+1. **RCP**: `export-structure .` (Maps the code)
+2. **TREE**: `consolidate` (Maps the intent)
+3. **MATRIX**: `connect -w .` (Creates the bridge)
+4. **MATRIX**: `inject -w .` (Labels the reality)
+5. **MATRIX**: `report -w .` (Verifies the score)
+
+---
+
+## 🧠 The Data Layer (.hybrid/)
+MATRIX relies on a unified data layer stored in the `.hybrid/` folder:
+- **`hybrid-tree.json`**: Requirements extracted by `TREE`.
+- **`hybrid-rcp.json`**: Code structure analyzed by `RCP`.
+- **`hybrid-matrix.json`**: The resulting traceability map.
+
+---
+
+## License
+This project is licensed under the Apache License, Version 2.0.
