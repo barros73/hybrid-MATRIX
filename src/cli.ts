@@ -177,12 +177,17 @@ async function run() {
             const treeData = JSON.parse(fs.readFileSync(treePath, 'utf-8'));
             const rcpStructure = JSON.parse(fs.readFileSync(rcpPath, 'utf-8'));
 
-            // Recursive function to extract requirement IDs from the tree
+            // Recursive function to extract requirement indices from the tree
             const extractReqs = (items: any[]): string[] => {
                 let ids: string[] = [];
                 for (const item of items) {
-                    const match = item.label.match(/([A-Z0-9]+(?:\.[A-Z0-9]+)+)/);
-                    if (match) ids.push(match[1]);
+                    if (item.index) {
+                        ids.push(item.index);
+                    } else {
+                        const match = item.label?.match(/([A-Z0-9]+(?:\.[A-Z0-9]+)+)/);
+                        if (match) ids.push(match[1]);
+                    }
+
                     if (item.children && item.children.length > 0) {
                         ids = ids.concat(extractReqs(item.children));
                     }
@@ -236,8 +241,8 @@ async function run() {
                             layer3_targets: [{
                                 file_path: node.filePath,
                                 construct_name: constructName,
-                                language: "rust",
-                                expected_tag: `@MATRIX: REQ-${reqId}`
+                                language: "typescript",
+                                expected_tag: `@MATRIX: ${reqId}`
                             }],
                             status: "BROKEN",
                             last_verified: new Date().toISOString()
