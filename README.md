@@ -64,25 +64,75 @@ curl -sSL https://raw.githubusercontent.com/barros73/hybrid-BIM/main/install.sh 
 
 ---
 
-## CLI Reference
+## 🛠️ CLI Reference & Operational Manual
 
 ### Usage
 ```bash
-node /path/to/hybrid-MATRIX/dist/cli.js <command> [options]
+node dist/cli.js <command> [options]
 ```
 
-### Commands
-| Command | Description |
-| :--- | :--- |
-| `sync` | Validates existing links in `hybrid-matrix.json` and syncs requirement IDs with the master manifest. |
-| `inject` | Automatically inserts `// @MATRIX: REQ-XXX` tags into the source code for all links marked as `BROKEN`. |
-| `connect` | Bridges `hybrid-tree.json` (Requirements) and `hybrid-rcp.json` (Code) to automatically generate potential links. |
-| `report` | Generates a high-level **Health Report** showing Traceability Integrity, total links, and documentation gaps. |
-
 ### Global Options
-- `-w <path>`: Specify the project workspace root where the `.hybrid/` folder is located. Defaults to current directory.
+- `-w <path>`: Specifies the project workspace root where the `.hybrid/` folder is located (Defaults to `process.cwd()`).
+- `--ai-format`: Hidden flag. Suppresses human-readable console metrics, returning pure JSON payloads. Crucial for invoking MATRIX via bash orchestrators or LLM Agents.
 
 ---
+
+### Commands Deep Dive
+
+#### 1. `connect` (The Architect)
+Bridges logical intent from `hybrid-tree.json` with the physical code reality mapped in `hybrid-rcp.json`.
+- **Action**: Matches requirement IDs (e.g., `J.1.2`) against code constructs and generates `.hybrid/hybrid-matrix.json`. Newly mapped abstract links are initially flagged as `"BROKEN"`.
+- **Example**: `hybrid-matrix connect -w .`
+
+#### 2. `inject` (The Tagger)
+Violently enforces traceability within Layer 3 (The Code).
+- **Action**: Autonomously reads all `"BROKEN"` links and injects the actual `// @MATRIX: REQ-XXX` tracking comments atop the designated `.rs`, `.ts`, or `.hpp` structures.
+- **Example**: `hybrid-matrix inject -w .`
+
+#### 3. `sync` (The Auditor)
+Validates existing links to ensure the software hasn't drifted from its design.
+- **Action**: Syncs ID hierarchies with the master manifest. Confirms that tagged code in Layer 3 still aligns with Layer 1 intent. Flips statuses from `"BROKEN"` to `"VALID"`.
+- **Example**: `hybrid-matrix sync -w . --ai-format`
+
+#### 4. `report` (The Health Inspector)
+Yields a high-level **Health Score** representing Traceability Integrity.
+- **Action**: Evaluates the ecosystem coverage. Displays the total number of links, Valid links vs Broken links, and critically exposes **Documentation Gaps** (Orphan requirements waiting for code).
+- **Example**: `hybrid-matrix report`
+
+#### 5. `bridge` (The AI Navigator)
+The primary directive for LLMs entering the system (Brownfield or Greenfield).
+- **Action**: Cross-references logical gaps against reality, generating an explicit, machine-instruction file: `MATRIX_INSTRUCTION.md`. This tells the AI precisely what is missing and what its next implementation step should be.
+- **Example**: `hybrid-matrix bridge -w .`
+
+#### 6. `skeleton` (The Scaffolder)
+Safe, deterministic directory scaffolding.
+- **Action**: Reads `"BROKEN"` components requiring new files/folders and securely generates the empty Rust constructs (`mod.rs`, directories). It safely skips existing files to prevent overwrite corruption.
+- **Example**: `hybrid-matrix skeleton`
+
+#### 7. `watch` (The Daemon)
+Background orchestrator mode.
+- **Action**: Monitors `*.md` and `*.rs` directories. Triggers autonomous re-compilation (RCP parsing, TREE consolidation, and MATRIX synchronization) upon save.
+
+---
+
+## 📜 Global Ecosystem Logging (Audit Trail)
+
+Due to the destructive and highly precise nature of MATRIX operations (like `inject` and `skeleton`), every single CLI run appends its explicit result to a centralized ledger.
+
+**Log Location:**
+**`📁 .hybrid/matrix-report.log`**
+
+**Example Log Entry:**
+```text
+[2026-02-28T14:42:00.000Z] COMMAND: report
+--- HYBRID ECOSYSTEM HEALTH REPORT ---
+🟢 Traceability Integrity: 88%
+🔗 Total Links: 42
+✅ Validated: 37
+🔴 Broken/Pending: 5
+⚠️  Documentation Gaps: 2 requirements without code
+-------------------------------------
+```
 
 ## Ecosystem Workflow
 The `hybrid` suite operates in a deterministic pipeline:
@@ -101,6 +151,4 @@ MATRIX relies on a unified data layer stored in the `.hybrid/` folder:
 - **`hybrid-matrix.json`**: The resulting traceability map.
 
 ---
-
-## License
-This project is licensed under the Apache License, Version 2.0.
+*Copyright 2026 Fabrizio Baroni. Licensed under the Apache License, Version 2.0.*

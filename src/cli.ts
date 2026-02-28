@@ -25,6 +25,8 @@ import { TagInjector } from './injector/TagInjector';
 import { MatrixStore } from './core/types';
 import { ContextExtractor } from './ai/ContextExtractor';
 import { ImpactSimulator } from './ai/ImpactSimulator';
+import { SkeletonGenerator } from './core/SkeletonGenerator';
+import { BridgeEngine } from './core/BridgeEngine';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -41,6 +43,13 @@ const aiFormat = args.includes('--ai-format');
 const hybridDir = path.join(workspaceRoot, '.hybrid');
 const matrixPath = path.join(hybridDir, 'hybrid-matrix.json');
 const manifestPath = path.join(workspaceRoot, 'MASTER_PROJECT_TREE.md');
+
+function appendLog(cmd: string, message: string): void {
+    if (!fs.existsSync(hybridDir)) fs.mkdirSync(hybridDir, { recursive: true });
+    const logPath = path.join(hybridDir, 'matrix-report.log');
+    const timestampedOutput = `[${new Date().toISOString()}] COMMAND: ${cmd}\n${message.trim()}\n\n`;
+    fs.appendFileSync(logPath, timestampedOutput);
+}
 
 /**
  * CLI entry point for hybrid-MATRIX.
@@ -107,11 +116,14 @@ async function run() {
 
             // Perform high-fidelity validation using RCP structures
             const updatedStore = await validator.validate(store, workspaceRoot);
-            fs.writeFileSync(matrixPath, JSON.stringify(updatedStore, null, 2));
             if (aiFormat) {
-                console.log(JSON.stringify({ status: 'success', validated_links: updatedStore.links.length }));
+                const out = JSON.stringify({ status: 'success', validated_links: updatedStore.links.length });
+                console.log(out);
+                appendLog('sync', out);
             } else {
-                console.log(`Sync Complete. Validated ${updatedStore.links.length} links.`);
+                const msg = `Sync Complete. Validated ${updatedStore.links.length} links.`;
+                console.log(msg);
+                appendLog('sync', msg);
             }
             break;
 
@@ -135,9 +147,13 @@ async function run() {
                 }
             }
             if (aiFormat) {
-                console.log(JSON.stringify({ status: 'success', injected_count: injectCount }));
+                const out = JSON.stringify({ status: 'success', injected_count: injectCount });
+                console.log(out);
+                appendLog('inject', out);
             } else {
-                console.log(`Injected ${injectCount} tags.`);
+                const msg = `Injected ${injectCount} tags.`;
+                console.log(msg);
+                appendLog('inject', msg);
             }
             break;
 
@@ -236,10 +252,15 @@ async function run() {
             fs.writeFileSync(matrixPath, JSON.stringify(connectStore, null, 2));
 
             if (aiFormat) {
-                console.log(JSON.stringify({ status: 'success', new_links: connectCount, gaps: unmapped.length }));
+                const out = JSON.stringify({ status: 'success', new_links: connectCount, gaps: unmapped.length });
+                console.log(out);
+                appendLog('connect', out);
             } else {
-                if (unmapped.length > 0) console.log(`⚠️  Gap Analysis: ${unmapped.length} requirements have no code constructs mapped.`);
-                console.log(`✅ Bridge Updated: ${connectCount} new links added to hybrid-matrix.json`);
+                let msg = "";
+                if (unmapped.length > 0) msg += `⚠️  Gap Analysis: ${unmapped.length} requirements have no code constructs mapped.\n`;
+                msg += `✅ Bridge Updated: ${connectCount} new links added to hybrid-matrix.json`;
+                console.log(msg);
+                appendLog('connect', msg);
             }
             break;
 
@@ -260,13 +281,15 @@ async function run() {
             const healthScore = totalLinks > 0 ? Math.round((validLinks / totalLinks) * 100) : 0;
 
             if (aiFormat) {
-                console.log(JSON.stringify({
+                const out = JSON.stringify({
                     health_score: healthScore,
                     total_links: totalLinks,
                     valid: validLinks,
                     broken: brokenLinks,
                     gaps: unmappedReqs
-                }));
+                });
+                console.log(out);
+                appendLog('report', out);
             } else {
                 const reportOutput = `
 --- HYBRID ECOSYSTEM HEALTH REPORT ---
@@ -278,11 +301,30 @@ async function run() {
 -------------------------------------
 `;
                 console.log(reportOutput);
-                const logPath = path.join(hybridDir, 'matrix-report.log');
-                const timestampedOutput = `[${new Date().toISOString()}]\n${reportOutput.trim()}\n\n`;
-                fs.appendFileSync(logPath, timestampedOutput);
-                console.log(`Report appended at: ${logPath}`);
+                appendLog('report', reportOutput);
             }
+            break;
+
+        // Uses the SkeletonGenerator to safely scaffold Rust architecture (directories and mod files)
+        case 'skeleton':
+            if (!aiFormat) console.log('Hybrid Matrix: Executing Safe Skeleton Generation...');
+            const generator = new SkeletonGenerator(workspaceRoot);
+            const genResult = generator.generate();
+            if (aiFormat) {
+                const out = JSON.stringify(genResult);
+                console.log(out);
+                appendLog('skeleton', out);
+            } else {
+                appendLog('skeleton', JSON.stringify(genResult));
+            }
+            break;
+
+        // Bridges Tree Logical manifest with RCP code reality to instruct AI on next steps
+        case 'bridge':
+            if (!aiFormat) console.log('Hybrid Matrix: Cross-referencing logic and reality...');
+            const bridgeEngine = new BridgeEngine(workspaceRoot);
+            bridgeEngine.bridge();
+            appendLog('bridge', 'AI Context Bridge Instructions Generated successfully');
             break;
 
         // Watch Mode: Background orchestrator that monitors files and updates the ecosystem
@@ -331,7 +373,7 @@ async function run() {
             break;
 
         default:
-            console.log('Usage: hybrid-matrix [sync|inject|connect|report] [-w <workspace-root>]');
+            console.log('Usage: hybrid-matrix [sync|inject|connect|report|skeleton|bridge|watch] [-w <workspace-root>]');
     }
 }
 
