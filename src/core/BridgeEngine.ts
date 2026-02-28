@@ -79,6 +79,7 @@ export class BridgeEngine {
 
     private finalize(report: string) {
         const hybridDir = path.join(this.workspaceRoot, '.hybrid');
+        if (!fs.existsSync(hybridDir)) fs.mkdirSync(hybridDir, { recursive: true });
         const reportPath = path.join(hybridDir, 'MATRIX_INSTRUCTION.md');
         fs.writeFileSync(reportPath, report);
         console.log(`✅ Instruction Generated: ${reportPath}`);

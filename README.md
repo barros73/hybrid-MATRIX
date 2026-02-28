@@ -135,12 +135,13 @@ Due to the destructive and highly precise nature of MATRIX operations (like `inj
 ```
 
 ## Ecosystem Workflow
-The `hybrid` suite operates in a deterministic pipeline:
-1. **RCP**: `export-structure .` (Maps the code)
-2. **TREE**: `consolidate` (Maps the intent)
-3. **MATRIX**: `connect -w .` (Creates the bridge)
-4. **MATRIX**: `inject -w .` (Labels the reality)
-5. **MATRIX**: `report -w .` (Verifies the score)
+The `hybrid` suite operates in a deterministic "Golden Loop" pipeline:
+1. **GENESIS**: `export --target tree` (Maps the Intent)
+2. **TREE**: `consolidate` (Maps the Logic)
+3. **RCP**: `export-structure .` (Maps the Reality)
+4. **MATRIX**: `connect` (Bridges Logic and Reality)
+5. **MATRIX**: `bridge` (Generates the Next Best Action)
+6. **MATRIX**: `inject` (Labels the reality)
 
 ---
 
