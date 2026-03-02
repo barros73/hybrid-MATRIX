@@ -27,6 +27,7 @@ import { ContextExtractor } from './ai/ContextExtractor';
 import { ImpactSimulator } from './ai/ImpactSimulator';
 import { SkeletonGenerator } from './core/SkeletonGenerator';
 import { BridgeEngine } from './core/BridgeEngine';
+import { ScriptExporter } from './core/ScriptExporter';
 
 const args = process.argv.slice(2);
 const command = args[0];
@@ -377,8 +378,35 @@ async function run() {
             process.stdin.resume();
             break;
 
+        case 'export-script':
+            if (!aiFormat) console.log('Hybrid Matrix: Exporting Code-as-Context script...');
+            const targetIndex = args.indexOf('--target');
+            if (targetIndex === -1 || !args[targetIndex + 1]) {
+                console.error("Error: --target flag required. Usage: hybrid-matrix export-script --target <path>");
+                process.exit(1);
+            }
+            const targetPath = args[targetIndex + 1];
+            const scriptExporter = new ScriptExporter(workspaceRoot);
+            const scriptContent = scriptExporter.exportContext(targetPath);
+
+            if (scriptContent) {
+                if (aiFormat) {
+                    // In AI format, just dump the raw code to stdout without formatting
+                    console.log(scriptContent);
+                } else {
+                    console.log(`\n--- Code-as-Context Generated for ${targetPath} ---\n`);
+                    console.log(scriptContent);
+                    console.log('--------------------------------------------------');
+                }
+                appendLog('export-script', `Generated text skeleton for ${targetPath}`);
+            } else {
+                if (aiFormat) console.log(JSON.stringify({ error: "Failed to export script" }));
+                process.exit(1);
+            }
+            break;
+
         default:
-            console.log('Usage: hybrid-matrix [sync|inject|connect|report|skeleton|bridge|watch] [-w <workspace-root>]');
+            console.log('Usage: hybrid-matrix [sync|inject|connect|report|skeleton|bridge|export-script|watch] [-w <workspace-root>] [--target <file>]');
     }
 }
 

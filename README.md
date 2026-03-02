@@ -104,12 +104,18 @@ The primary directive for LLMs entering the system (Brownfield or Greenfield).
 - **Action**: Cross-references logical gaps against reality, generating an explicit, machine-instruction file: `MATRIX_INSTRUCTION.md`. This tells the AI precisely what is missing and what its next implementation step should be.
 - **Example**: `hybrid-matrix bridge -w .`
 
-#### 6. `skeleton` (The Scaffolder)
+#### 6. `export-script` (Code-as-Context Generator)
+Translates the JSON architectural graphs into compilable "Ghost Skeletons" optimized for LLM inference.
+- **Action**: Reads the fused `hybrid-matrix.json` and `hybrid-rcp.json` and produces an empty, deterministically typed script (e.g., `.ts`, `.rs`, `.py`). This script contains the exact interfaces, class names, and `import` edges the AI must follow, using `// @MATRIX-REQ` tags, allowing the AI to write purely implementation logic without guessing the architecture.
+- **Example**: `hybrid-matrix export-script -w . --target src/core/network_gateway.rs`
+
+
+#### 7. `skeleton` (The Scaffolder)
 Safe, deterministic directory scaffolding.
 - **Action**: Reads `"BROKEN"` components requiring new files/folders and securely generates the empty Rust constructs (`mod.rs`, directories). It safely skips existing files to prevent overwrite corruption.
 - **Example**: `hybrid-matrix skeleton`
 
-#### 7. `watch` (The Daemon)
+#### 8. `watch` (The Daemon)
 Background orchestrator mode.
 - **Action**: Monitors `*.md` and `*.rs` directories. Triggers autonomous re-compilation (RCP parsing, TREE consolidation, and MATRIX synchronization) upon save.
 
