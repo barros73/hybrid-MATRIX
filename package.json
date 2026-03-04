@@ -2,7 +2,7 @@
     "name": "hybrid-matrix",
     "displayName": "Hybrid Matrix",
     "description": "Deterministic Traceability Engine for the Hybrid Ecosystem",
-    "version": "0.6.0",
+    "version": "0.6.1",
     "license": "Apache-2.0",
     "bin": {
         "hybrid-matrix": "./dist/hybrid-MATRIX/src/cli.js"
@@ -31,8 +31,12 @@
         "test": "echo \"Error: no test specified\" && exit 1"
     },
     "devDependencies": {
+        "@types/commander": "^2.12.0",
         "@types/node": "20.2.5",
         "@types/vscode": "^1.80.0",
         "typescript": "^5.9.3"
+    },
+    "dependencies": {
+        "commander": "^14.0.3"
     }
 }

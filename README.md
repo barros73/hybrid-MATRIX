@@ -1,4 +1,4 @@
-# 🧊 hybrid-MATRIX
+# 🧊 hybrid-MATRIX: v0.6.1 - 2026-03-04
 **The Deterministic Traceability Engine: Bridging Architectural Intent with Physical Code.**
 
 In large-scale codebases (30k+ lines, monorepos, hybrid ecosystems), maintaining consistency between what was designed and what was written is the greatest challenge. Tickets are closed, code mutates, and context is lost.
@@ -12,16 +12,21 @@ hybrid-MATRIX is part of a three-tier orchestration suite designed for cloud env
 *   **Layer 2 (The Bridge):** **hybrid-MATRIX** - This module. The elevator that rigidly connects intent to silicon.
 *   **Layer 3 (The Reality):** [hybrid-RCP](file:///home/ingbaroni/hybrid/hybrid-RCP) - The source code parser that validates syntax and prevents conflicts (Ownership, Memory Leaks).
 
-✨ Core Features
-🔒 **Double Validation (Belt & Suspenders):** A link is only valid if the `hybrid-matrix.json` file declares the route (Top-Down) AND the parser physically finds the tag in the source code (e.g., `// @MATRIX: REQ-01`) (Bottom-Up). If you move a file and forget to update the architecture, the system triggers an alarm.
+ ✨ Core Features
+🔴 **Color-Coded Risk Management (The Dashboard):** Every component in the system is assigned a stability/risk level, visualized in the `bridge` report:
+- 🔴 **RED (Conflict)**: Architectural violations (e.g., Ownership conflicts, missing files). **Blocks implementation until resolved.**
+- 🟡 **YELLOW (Orphan)**: Code exists but is not mapped to a requirement. Signals architectural drift.
+- ⚪ **WHITE (In-Progress)**: Active mission currently under development.
+- 🟢 **GREEN (Stable)**: Requirement and Code are perfectly synchronized.
+- 🔵 **BLUE (High Gravity)**: Core stable nodes with high dependency counts. Requires extreme caution during modification.
 
-🔀 **Complex Cardinality:** Natively supports 1:1, 1:N (one task generates 50 files), and N:1 (10 security requirements pointing to a single Core construct) relationships.
+🔍 **Discovery Engine (Logical Clusters):** Beyond static rules, MATRIX uses a BFS-based graph traversal to find the "Gravity Core" of any file. When implementing a feature, MATRIX automatically identifies and includes core dependencies (manager, types, lib) in the AI context.
 
-🕵️ **Orphan Analysis:** The engine performs a continuous scan, returning two vital metrics:
-*   **Missing Code (Broken elevator at the top):** Approved requirements with no corresponding code.
-*   **Zombie Code (Broken elevator at the bottom):** Existing and tagged code whose original requirement has been deleted.
+🔒 **Double Validation:** A link is only valid if the `hybrid-matrix.json` file declares the route AND the parser physically finds the tag in the source code.
 
-🤖 **AI-Proof:** Developed to prevent LLM "hallucinations." MATRIX provides AI agents (like those in Antigravity) with an unassailable map of connections, telling the AI exactly where a logical block is located without making it guess.
+🕵️ **Orphan Analysis:** Continuous scan for missing code (requirements without files) and zombie code (files without requirements).
+
+🤖 **AI-Proof Context:** Provides LLM agents with an unassailable map of connections, including "Ghost Skeletons" for missing files, ensuring the AI never has to guess the architecture.
 
 ⚙️ How It Works (The Matrix JSON)
 The core of the system is a Git-versioned JSON multiplexer (inside `.hybrid/`), acting as the Single Source of Truth:
@@ -101,14 +106,15 @@ Yields a high-level **Health Score** representing Traceability Integrity.
 
 #### 5. `bridge` (The AI Navigator)
 The primary directive for LLMs entering the system (Brownfield or Greenfield).
-- **Action**: Cross-references logical gaps against reality, generating an explicit, machine-instruction file: `MATRIX_INSTRUCTION.md`. This tells the AI precisely what is missing and what its next implementation step should be.
+- **Action**: Cross-references logical gaps against reality, generating an explicit, machine-instruction file: `MATRIX_INSTRUCTION.md`.
+- **New in v0.6**: Includes a **Spatial Mission Map (Mermaid)** and prioritizes **Architectural Conflicts** (Red Nodes) as Priority Zero.
 - **Example**: `hybrid-matrix bridge -w .`
 
 #### 6. `export-script` (Code-as-Context Generator)
 Translates the JSON architectural graphs into compilable "Ghost Skeletons" optimized for LLM inference.
-- **Action**: Reads the fused `hybrid-matrix.json` and `hybrid-rcp.json` and produces an empty, deterministically typed script (e.g., `.ts`, `.rs`, `.py`). This script contains the exact interfaces, class names, and `import` edges the AI must follow, using `// @MATRIX-REQ` tags, allowing the AI to write purely implementation logic without guessing the architecture.
+- **Action**: Produces an empty, deterministically typed script containing the exact interfaces and `import` edges the AI must follow.
+- **Cluster-Aware**: Uses the **Discovery Engine** to automatically include "Core" dependencies in the skeleton header, preventing the AI from hallucinating isolated logic.
 - **Example**: `hybrid-matrix export-script -w . --target src/core/network_gateway.rs`
-
 
 #### 7. `skeleton` (The Scaffolder)
 Safe, deterministic directory scaffolding.

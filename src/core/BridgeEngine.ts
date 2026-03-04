@@ -1,5 +1,6 @@
 import * as path from 'path';
 import * as fs from 'fs';
+import { ScriptExporter } from './ScriptExporter';
 
 export class BridgeEngine {
     constructor(private workspaceRoot: string) { }
@@ -62,20 +63,44 @@ export class BridgeEngine {
 
         const rcpData = JSON.parse(fs.readFileSync(rcpPath, 'utf8'));
         const codeNodes: any[] = rcpData.nodes || [];
+        const edges: any[] = rcpData.edges || [];
+        const scriptExporter = new ScriptExporter(this.workspaceRoot);
+        const scriptsDir = path.join(hybridDir, 'scripts');
+        if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
 
-        report += `### 🔍 BROWNFRIELD SYNC: Gap Analysis\n`;
+        // -- SINGLE READ of hybrid-matrix.json --
+        const matrixPath = path.join(hybridDir, 'hybrid-matrix.json');
+        const matrixStore = fs.existsSync(matrixPath)
+            ? JSON.parse(fs.readFileSync(matrixPath, 'utf-8'))
+            : { links: [] };
+
+        // Extension regex for all supported languages: Rust, C++, Python, Go, TypeScript/JS, C
+        const LANG_EXT_RE = /\.(rs|ts|js|cpp|hpp|cc|py|go|c|h)$/i;
+
+        // Pre-compute: which file paths are already declared in matrix.json
+        const mappedFilePaths = new Set<string>(
+            matrixStore.links.flatMap((l: any) => l.layer3_targets.map((t: any) => t.file_path))
+        );
+
+        report += `### 🔍 BROWNFIELD SYNC: Gap Analysis\n`;
         report += `MATRIX has reconciled the Topographic Plan (TREE) with the Physical Reality (RCP).\n\n`;
 
         let missingInCode = 0;
-        let unknownInCode = 0;
 
+        // ─────────────────────────────────────────────────────────────
+        // SECTION 1: TARGETS — requirements with no code yet
+        // ─────────────────────────────────────────────────────────────
         report += `#### 🔴 TARGETS: Missing in Reality\n`;
         nodes.forEach(n => {
-            // Match by Index or specific ID tags
+            const label = n.label || '';
+            const isMermaidSyntax = (label.includes('[') && label.includes(']')) || label.includes('-->') || label.includes('==>') || label.includes('|');
+            const isTechnicalMarker = label.includes('```') || label.includes('graph ') || isMermaidSyntax || n.id?.includes('`');
+            if (isTechnicalMarker) return;
+
             const isImplemented = codeNodes.some(cn =>
                 (cn.tags && cn.tags.some((t: string) => t === n.id || t === n.index)) ||
                 (cn.data && cn.data.some((d: any) => d.name.includes(n.id) || d.name.includes(n.index))) ||
-                cn.filePath.includes(n.id) ||
+                (cn.filePath && cn.filePath.includes(n.id)) ||
                 cn.name === n.id
             );
 
@@ -84,39 +109,172 @@ export class BridgeEngine {
                 const ctx = getContext(n.index);
                 if (ctx) report += ctx;
                 if (n.description) report += `**Goal**: ${n.description}\n`;
+
+                const link = matrixStore.links.find((l: any) =>
+                    l.layer1_sources.includes(n.id) || l.layer1_sources.includes(n.index)
+                );
+                if (link && link.layer3_targets.length > 0) {
+                    const targetFile = link.layer3_targets[0].file_path;
+                    const scriptContent = scriptExporter.exportContext(targetFile);
+                    if (scriptContent) {
+                        const scriptFileName = `${path.basename(targetFile, path.extname(targetFile))}_skeleton${path.extname(targetFile)}`;
+                        const scriptPath = path.join(scriptsDir, scriptFileName);
+                        fs.writeFileSync(scriptPath, scriptContent);
+                        report += `> 📝 **Skeleton Generated**: [.hybrid/scripts/${scriptFileName}](file://${scriptPath})\n`;
+                    }
+                }
                 missingInCode++;
             }
         });
-
         if (missingInCode === 0) report += `- *None! All planned features exist in code.*\n`;
 
-        report += `\n#### 👻 ORPHANS: Unmapped Reality\n`;
+        // ─────────────────────────────────────────────────────────────
+        // SECTION 2: ARCHITECTURAL CONFLICTS (RED — Priority Zero)
+        // ─────────────────────────────────────────────────────────────
+        const conflicts: any[] = rcpData.conflicts || [];
+        if (conflicts.length > 0) {
+            report += `\n#### ⚠️ ARCHITECTURAL CONFLICTS\n`;
+            conflicts.forEach((c: any) => {
+                const icon = c.severity === 'error' ? '🔴' : '🟡';
+                report += `- ${icon} **${c.category}**: ${c.description} (at \`${path.basename(c.location.file)}:L${c.location.line}\`)\n`;
+                if (c.suggestedFix) report += `  - 💡 *Fix*: ${c.suggestedFix}\n`;
+            });
+            report += `\n`;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // SECTION 3: CANDIDATE DISCOVERY (PURPLE — Semantic Affinity)
+        // Matches orphaned files to requirements by filename/label keyword
+        // Supported: .rs .ts .js .cpp .hpp .cc .py .go .c .h
+        // ─────────────────────────────────────────────────────────────
+        const orphans = codeNodes.filter(cn => cn.filePath && !mappedFilePaths.has(cn.filePath));
+        const candidates: Array<{ reqId: string; reqLabel: string; node: any }> = [];
+
+        nodes.forEach(n => {
+            const reqLabel = (n.label || '').toLowerCase();
+            orphans.forEach(o => {
+                const fileName = path.basename(o.filePath || '').toLowerCase().replace(LANG_EXT_RE, '');
+                const firstWord = reqLabel.split(/\s+/)[0];
+                if (reqLabel.includes(fileName) || (firstWord.length > 2 && fileName.includes(firstWord))) {
+                    // Avoid duplicate entries
+                    if (!candidates.some(c => c.reqId === n.index && c.node.id === o.id)) {
+                        candidates.push({ reqId: n.index, reqLabel: n.label, node: o });
+                    }
+                }
+            });
+        });
+
+        if (candidates.length > 0) {
+            report += `#### 🟣 CANDIDATE DISCOVERY (AI Suggestions)\n`;
+            candidates.forEach(c => {
+                report += `- ✨ **${c.reqId}** (${c.reqLabel}) → orphaned file \`${path.basename(c.node.filePath)}\`\n`;
+                report += `  - 🔗 *Action*: \`hybrid-matrix map --ai --req ${c.reqId} --target ${c.node.filePath}\`\n`;
+            });
+            report += `\n`;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // SECTION 4: ORPHANS — files with no requirement and no candidate
+        // ─────────────────────────────────────────────────────────────
+        const candidateNodeIds = new Set(candidates.map(c => c.node.id));
+        const unknownOrphans = orphans.filter(o => !candidateNodeIds.has(o.id));
+        if (unknownOrphans.length > 0) {
+            report += `#### 👻 ORPHANS: Unmapped Reality\n`;
+            unknownOrphans.forEach(o => {
+                report += `- [?] \`${path.basename(o.filePath)}\` — not in TREE, not matched to any requirement\n`;
+            });
+            report += `\n`;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // FINAL AI INSTRUCTION
+        // ─────────────────────────────────────────────────────────────
+        report += `\n### 🤖 FINAL AI INSTRUCTION\n`;
+        if (missingInCode > 0) report += `1. **Execute Missions**: Implement components in 'TARGETS'.\n`;
+        if (conflicts.length > 0) report += `2. **Resolve Conflicts**: Fix issues in 'ARCHITECTURAL CONFLICTS'.\n`;
+        if (candidates.length > 0) report += `3. **Adopt Candidates**: Link files in 'CANDIDATE DISCOVERY'.\n`;
+        if (unknownOrphans.length > 0) report += `4. **Address Orphans**: Map or remove files in 'ORPHANS'.\n`;
+
+        // ─────────────────────────────────────────────────────────────
+        // SECTION 5: SPATIAL MISSION MAP (Mermaid — Color-Coded)
+        // ─────────────────────────────────────────────────────────────
+        report += `\n### 🗺️ SPATIAL MISSION MAP (Mermaid Graph)\n`;
+        report += `\`\`\`mermaid\ngraph TD\n`;
+
+        const usedEdges = new Set<string>();
+        const nodeStability: Record<string, { incoming: number; color: string }> = {};
+
+        // Initialize all code nodes: default YELLOW (orphan)
         codeNodes.forEach(cn => {
-            const fileName = path.basename(cn.filePath, path.extname(cn.filePath));
-            const isPlanned = nodes.some(n =>
-                n.id === fileName ||
-                n.index === fileName ||
-                (cn.tags && cn.tags.some((t: string) => t === n.id || t === n.index)) ||
-                (cn.data && cn.data.some((d: any) => d.name === n.id || d.name === n.index))
-            );
-            if (!isPlanned && fileName !== 'mod' && fileName !== 'main' && fileName !== 'lib') {
-                report += `- [?] File/Module \`${cn.filePath}\` is not mapped in TREE.\n`;
-                unknownInCode++;
+            const nodeId = cn.filePath
+                ? path.basename(cn.filePath).replace(/\./g, '_')
+                : cn.id.replace(/\./g, '_');
+
+            let color = '#ffff33'; // Yellow (Orphan)
+            if (mappedFilePaths.has(cn.filePath)) color = '#33ff33'; // Green (Linked)
+            if (rcpData.conflicts?.some((c: any) => c.location.file === cn.filePath)) color = '#ff3333'; // Red (Conflict — overrides)
+            if (candidates.some(c => c.node.filePath === cn.filePath)) color = '#9333ea'; // Purple (Candidate)
+
+            nodeStability[nodeId] = { incoming: 0, color };
+        });
+
+        // Calculate incoming edge gravity
+        edges.forEach((e: any) => {
+            const targetId = path.basename(e.to).replace(/\./g, '_');
+            if (nodeStability[targetId]) nodeStability[targetId].incoming++;
+        });
+
+        // Promote high-gravity stable nodes to BLUE
+        Object.keys(nodeStability).forEach(id => {
+            if (nodeStability[id].incoming >= 5 && nodeStability[id].color === '#33ff33') {
+                nodeStability[id].color = '#3333ff'; // Blue (High Gravity)
             }
         });
 
-        if (unknownInCode === 0) report += `- *None! All code is perfectly tracked.*\n`;
+        // Add Mission nodes (WHITE = In-Progress)
+        nodes.forEach(n => {
+            const id = `MISSION_${n.index.replace(/\./g, '_')}`;
+            nodeStability[id] = { incoming: 0, color: '#ffffff' };
+        });
 
-        report += `\n### 🤖 FINAL AI INSTRUCTION\n`;
-        if (missingInCode > 0) {
-            report += `1. **Execute Missions**: Implement the components listed in 'TARGETS'. Use the provided Parent/Grandparent context to ensure logic alignment.\n`;
-        }
-        if (unknownInCode > 0) {
-            report += `2. **Address Orphans**: Either incorporate these files into the TREE/GENESIS plan or remove them to avoid architectural drift.\n`;
-        }
+        // Render: code dependency edges
+        edges.forEach((e: any) => {
+            if (e.type === 'ownership') return;
+            const source = path.basename(e.from).replace(/\./g, '_');
+            const target = path.basename(e.to).replace(/\./g, '_');
+            const typeLabel = e.type === 'mutable' ? '== mutates ==>' : '-->';
+            const edgeKey = `${source}${typeLabel}${target}`;
+            if (!usedEdges.has(edgeKey)) {
+                report += `  ${source}${typeLabel}${target}\n`;
+                usedEdges.add(edgeKey);
+            }
+        });
+
+        // Render: requirement → code mappings (pink dashed lines)
+        matrixStore.links.forEach((l: any) => {
+            const reqValue = l.layer1_sources[0] || 'Unk';
+            const reqId = `REQ_${reqValue.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            nodeStability[reqId] = { incoming: 0, color: '#f9f' };
+            l.layer3_targets.forEach((t: any) => {
+                const targetName = path.basename(t.file_path).replace(/\./g, '_');
+                report += `  ${reqId} -. maps .-> ${targetName}\n`;
+            });
+        });
+
+        // Render styles for all nodes
+        Object.entries(nodeStability).forEach(([id, meta]) => {
+            const darkBg = ['#ff3333', '#3333ff', '#9333ea'].includes(meta.color);
+            const fontColor = darkBg ? 'color:#fff' : 'color:#333';
+            const strokeWidth = meta.color === '#ff3333' ? '3px' : '2px';
+            report += `  style ${id} fill:${meta.color},stroke:#333,stroke-width:${strokeWidth},${fontColor}\n`;
+        });
+
+        report += `\`\`\`\n\n`;
+        report += `> **Legend**: 🔴 Conflict | 🟣 Candidate | 🟡 Orphan | ⚪ In-Progress | 🟢 Stable | 🔵 High Gravity (≥5 deps)\n`;
 
         return this.finalize(report);
     }
+
 
     private finalize(report: string) {
         const hybridDir = path.join(this.workspaceRoot, '.hybrid');

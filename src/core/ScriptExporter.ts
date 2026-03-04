@@ -18,15 +18,18 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import { MatrixStore } from './types';
+import { DiscoveryEngine } from './DiscoveryEngine';
 
 export class ScriptExporter {
     private workspaceRoot: string;
+    private discoveryEngine: DiscoveryEngine;
 
     constructor(workspaceRoot: string) {
         this.workspaceRoot = workspaceRoot;
+        this.discoveryEngine = new DiscoveryEngine(workspaceRoot);
     }
 
-    public exportContext(targetPath: string): string | null {
+    public exportContext(targetPath: string, forceReqId?: string): string | null {
         const hybridDir = path.join(this.workspaceRoot, '.hybrid');
         const matrixPath = path.join(hybridDir, 'hybrid-matrix.json');
         const rcpPath = path.join(hybridDir, 'hybrid-rcp.json');
@@ -42,35 +45,83 @@ export class ScriptExporter {
         // Normalize target path
         const absTarget = path.resolve(this.workspaceRoot, targetPath);
 
+        // Find logical cluster (Phase 3 Feature)
+        const cluster = this.discoveryEngine.discoverCluster(absTarget);
+
         // Find relevant MATRIX links
-        const activeLinks = matrixStore.links.filter(l =>
+        let activeLinks = matrixStore.links.filter(l =>
             l.layer3_targets.some(t => path.resolve(this.workspaceRoot, t.file_path) === absTarget)
         );
+
+        if (forceReqId && activeLinks.length === 0) {
+            // Manually link this requirement to this ghost file
+            activeLinks = [{
+                matrix_id: `MTX-MAN-${forceReqId}`,
+                cardinality: '1:1',
+                layer1_sources: [forceReqId],
+                layer3_targets: [{
+                    file_path: targetPath,
+                    language: 'rust', // Defaulting to rust for ghost
+                    expected_tag: `@MATRIX: ${forceReqId}`
+                }],
+                status: 'BROKEN',
+                last_verified: new Date().toISOString()
+            }];
+        }
 
         const requirements = activeLinks.flatMap(l => l.layer1_sources);
         const reqTag = requirements.length > 0 ? `// @MATRIX-REQ: ${requirements.join(', ')}` : '// @MATRIX-REQ: Unmapped';
 
         // Find RCP Node for this file
-        const node = rcpStore.nodes.find((n: any) => n.filePath === absTarget);
-        if (!node) {
-            console.error(`Error: Target file ${targetPath} not found in hybrid-rcp.json.`);
-            return null;
-        }
-
-        // Find RCP Edges (Imports) originating from this file
+        let node = rcpStore.nodes.find((n: any) => n.id === absTarget || n.filePath === absTarget);
         const outgoingEdges = rcpStore.edges?.filter((e: any) => e.from === absTarget) || [];
 
+        if (!node) {
+            // "Ghost Skeleton" mode
+            if (activeLinks.length > 0) {
+                const targetInfo = activeLinks[0].layer3_targets.find(t => path.resolve(this.workspaceRoot, t.file_path) === absTarget);
+                node = {
+                    name: targetInfo?.construct_name || path.basename(absTarget, path.extname(absTarget)),
+                    filePath: absTarget,
+                    data: [],
+                    outputs: activeLinks.map(l => ({
+                        name: l.layer3_targets.find(t => path.resolve(this.workspaceRoot, t.file_path) === absTarget)?.construct_name || "mod_logic",
+                        type: "void",
+                        args: ""
+                    }))
+                };
+            } else {
+                console.error(`Error: Target file ${targetPath} has no mapping in hybrid-matrix.json.`);
+                return null;
+            }
+        }
+
+        let contextHeader = `// @MATRIX-CONTEXT: Do not modify architectural boundaries. Implement logic only.\n${reqTag}\n`;
+
+        if (cluster && cluster.logicCores.length > 0) {
+            contextHeader += `/* \n * 🌉 LOGICAL CLUSTER (Spatial Map Gravity)\n`;
+            contextHeader += ` * This component is logically connected to:\n`;
+            cluster.logicCores.forEach(core => {
+                contextHeader += ` * - ${path.basename(core.filePath)} (${core.name})\n`;
+            });
+            contextHeader += ` */\n`;
+        }
+        contextHeader += `\n`;
+
         const ext = path.extname(absTarget);
+        let skeletonBody = "";
         if (ext === '.ts' || ext === '.js') {
-            return this.renderTypescriptSkeleton(node, outgoingEdges, reqTag);
+            skeletonBody = this.renderTypescriptSkeleton(node, outgoingEdges, "");
         } else if (ext === '.rs') {
-            return this.renderRustSkeleton(node, outgoingEdges, reqTag);
+            skeletonBody = this.renderRustSkeleton(node, outgoingEdges, "");
         } else if (ext === '.py') {
-            return this.renderPythonSkeleton(node, outgoingEdges, reqTag);
+            skeletonBody = this.renderPythonSkeleton(node, outgoingEdges, "");
         } else {
-            console.error(`Unsupported extension for Code-as-Context: ${ext}`);
+            console.error(`Unsupported extension: ${ext}`);
             return null;
         }
+
+        return contextHeader + skeletonBody;
     }
 
     private renderTypescriptSkeleton(node: any, edges: any[], reqTag: string): string {
@@ -114,7 +165,7 @@ export class ScriptExporter {
     }
 
     private renderRustSkeleton(node: any, edges: any[], reqTag: string): string {
-        let code = `// @MATRIX-CONTEXT: Do not modify architectural boundaries. Implement logic only.\n${reqTag}\n\n`;
+        let code = ``; // Removed initial context and reqTag, now handled in exportContext
 
         const uniqueImports = new Set(edges.map(e => e.to));
         uniqueImports.forEach(imp => {
@@ -137,7 +188,9 @@ export class ScriptExporter {
         if (node.outputs && node.outputs.length > 0) {
             code += `impl ${constructName} {\n`;
             node.outputs.forEach((m: any) => {
-                code += `    pub fn ${m.name}(${m.args || ''}) -> ${m.type || '()'} {\n`;
+                let returnType = m.type || '()';
+                if (returnType === 'pub fn' || returnType === 'fn') returnType = '()';
+                code += `    pub fn ${m.name}(${m.args || ''}) -> ${returnType} {\n`;
                 code += `        // [AI_IMPLEMENTATION_TARGET]\n`;
                 code += `        unimplemented!("Not implemented yet");\n`;
                 code += `    }\n\n`;
