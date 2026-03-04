@@ -379,7 +379,7 @@ program
 
         if (!options.aiFormat) console.log('Hybrid Matrix: Cross-referencing logic and reality...');
         const bridgeEngine = new BridgeEngine(workspaceRoot);
-        bridgeEngine.bridge();
+        await bridgeEngine.bridge();
         appendLog(logPath, 'bridge', 'AI Context Bridge Instructions Generated successfully');
     });
 

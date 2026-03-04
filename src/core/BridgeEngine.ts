@@ -1,11 +1,12 @@
 import * as path from 'path';
 import * as fs from 'fs';
 import { ScriptExporter } from './ScriptExporter';
+import { SemanticEngine } from './SemanticEngine';
 
 export class BridgeEngine {
     constructor(private workspaceRoot: string) { }
 
-    public bridge() {
+    public async bridge() {
         console.log('Hybrid Matrix: Executing Bridge Analysis...');
         const hybridDir = path.join(this.workspaceRoot, '.hybrid');
         const treePath = path.join(hybridDir, 'hybrid-tree.json');
@@ -144,34 +145,43 @@ export class BridgeEngine {
 
         // ─────────────────────────────────────────────────────────────
         // SECTION 3: CANDIDATE DISCOVERY (PURPLE — Semantic Affinity)
-        // Matches orphaned files to requirements by filename/label keyword
+        // Phase 4: LLM-based scoring via SemanticEngine
         // Supported: .rs .ts .js .cpp .hpp .cc .py .go .c .h
+        // Config: .hybrid/hybrid-config.json
         // ─────────────────────────────────────────────────────────────
         const orphans = codeNodes.filter(cn => cn.filePath && !mappedFilePaths.has(cn.filePath));
-        const candidates: Array<{ reqId: string; reqLabel: string; node: any }> = [];
 
-        nodes.forEach(n => {
-            const reqLabel = (n.label || '').toLowerCase();
-            orphans.forEach(o => {
-                const fileName = path.basename(o.filePath || '').toLowerCase().replace(LANG_EXT_RE, '');
-                const firstWord = reqLabel.split(/\s+/)[0];
-                if (reqLabel.includes(fileName) || (firstWord.length > 2 && fileName.includes(firstWord))) {
-                    // Avoid duplicate entries
-                    if (!candidates.some(c => c.reqId === n.index && c.node.id === o.id)) {
-                        candidates.push({ reqId: n.index, reqLabel: n.label, node: o });
-                    }
-                }
-            });
+        // Filter: only pass clean requirement nodes to the semantic engine
+        // Exclude Mermaid graph syntax labels like "B --> C[\"BIM Models\"]"
+        const semanticReqs = nodes.filter(n => {
+            const label = n.label || '';
+            const hasMermaidArrow = label.includes('-->') || label.includes('==>');
+            const hasBrackets = label.includes('[') && label.includes(']');
+            const hasGraphKeyword = /^graph\s+(TD|LR|BT|RL)/i.test(label);
+            const hasCodeFence = label.includes('```');
+            return !hasMermaidArrow && !hasBrackets && !hasGraphKeyword && !hasCodeFence
+                && label.trim().length > 2;
         });
 
-        if (candidates.length > 0) {
-            report += `#### 🟣 CANDIDATE DISCOVERY (AI Suggestions)\n`;
-            candidates.forEach(c => {
-                report += `- ✨ **${c.reqId}** (${c.reqLabel}) → orphaned file \`${path.basename(c.node.filePath)}\`\n`;
-                report += `  - 🔗 *Action*: \`hybrid-matrix map --ai --req ${c.reqId} --target ${c.node.filePath}\`\n`;
+        const semanticEngine = new SemanticEngine(this.workspaceRoot);
+        const semanticMatches = await semanticEngine.score(orphans, semanticReqs);
+
+        if (semanticMatches.length > 0) {
+            report += `#### 🟣 CANDIDATE DISCOVERY (Semantic Affinity)\n`;
+            semanticMatches.forEach(m => {
+                const bt = '`';
+                const previewStr = m.preview.length > 0
+                    ? bt + m.preview.slice(0, 3).join(bt + '  ' + bt) + bt
+                    : '';
+                report += `- ✨ **${m.reqId}** (${m.reqLabel}) [score: ${m.score.toFixed(2)}, mode: ${m.mode}]\n`;
+                report += `  → ${bt}${path.basename(m.node.filePath)}${bt}${previewStr ? `  —  ${previewStr}` : ''}\n`;
+                report += `  - 🔗 *Action*: ${bt}hybrid-matrix map --ai --req ${m.reqId} --target ${m.node.filePath}${bt}\n`;
             });
             report += `\n`;
         }
+
+        // Keep backward compat: expose candidates array for orphan filtering
+        const candidates = semanticMatches;
 
         // ─────────────────────────────────────────────────────────────
         // SECTION 4: ORPHANS — files with no requirement and no candidate
@@ -192,7 +202,7 @@ export class BridgeEngine {
         report += `\n### 🤖 FINAL AI INSTRUCTION\n`;
         if (missingInCode > 0) report += `1. **Execute Missions**: Implement components in 'TARGETS'.\n`;
         if (conflicts.length > 0) report += `2. **Resolve Conflicts**: Fix issues in 'ARCHITECTURAL CONFLICTS'.\n`;
-        if (candidates.length > 0) report += `3. **Adopt Candidates**: Link files in 'CANDIDATE DISCOVERY'.\n`;
+        if (candidates.length > 0) report += `3. **Adopt Candidates**: Link ${candidates.length} files in 'CANDIDATE DISCOVERY'.\n`;
         if (unknownOrphans.length > 0) report += `4. **Address Orphans**: Map or remove files in 'ORPHANS'.\n`;
 
         // ─────────────────────────────────────────────────────────────
