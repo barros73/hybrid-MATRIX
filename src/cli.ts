@@ -363,7 +363,7 @@ program
         const { logPath } = getPaths(workspaceRoot);
 
         if (!options.aiFormat) console.log('Hybrid Matrix: Executing Safe Skeleton Generation...');
-        const generator = new SkeletonGenerator(workspaceRoot);
+        const generator = new SkeletonGenerator(workspaceRoot, options.aiFormat);
         const genResult = generator.generate();
         if (options.aiFormat) {
             console.log(JSON.stringify(genResult));
@@ -380,8 +380,11 @@ program
         const { logPath } = getPaths(workspaceRoot);
 
         if (!options.aiFormat) console.log('Hybrid Matrix: Cross-referencing logic and reality...');
-        const bridgeEngine = new BridgeEngine(workspaceRoot);
-        await bridgeEngine.bridge();
+        const bridgeEngine = new BridgeEngine(workspaceRoot, options.aiFormat);
+        const result = await bridgeEngine.bridge();
+        if (options.aiFormat) {
+            console.log(JSON.stringify(result));
+        }
         appendLog(logPath, 'bridge', 'AI Context Bridge Instructions Generated successfully');
     });
 
@@ -492,7 +495,10 @@ program
         const options = program.opts();
         const workspaceRoot = getWorkspaceRoot(options);
         const engine = new ForgeEngine();
-        engine.trigger(workspaceRoot, !!cmdOptions.commit);
+        const result = engine.trigger(workspaceRoot, !!cmdOptions.commit, options.aiFormat);
+        if (options.aiFormat) {
+            console.log(JSON.stringify(result));
+        }
     });
 
 program
@@ -517,9 +523,9 @@ program
             description: "Cross-reference logic and reality to generate instructions",
             inputSchema: { type: "object", properties: {} },
             handler: async () => {
-                const bridgeEngine = new BridgeEngine(workspaceRoot);
-                await bridgeEngine.bridge();
-                return { content: [{ type: "text", text: "Matrix bridge (instructions) generated successfully." }] };
+                const bridgeEngine = new BridgeEngine(workspaceRoot, true);
+                const result = await bridgeEngine.bridge();
+                return { content: [{ type: "text", text: `Matrix bridge (instructions) generated successfully at ${result?.instructionPath}.` }] };
             }
         });
 
@@ -534,8 +540,8 @@ program
             },
             handler: async (args: any) => {
                 const engine = new ForgeEngine();
-                engine.trigger(workspaceRoot, !!args.commit);
-                return { content: [{ type: "text", text: `Forge trigger executed (commit: ${!!args.commit}).` }] };
+                const result = engine.trigger(workspaceRoot, !!args.commit, true);
+                return { content: [{ type: "text", text: `Forge trigger executed: ${result?.message}` }] };
             }
         });
 

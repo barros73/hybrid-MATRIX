@@ -11,15 +11,15 @@ interface TreeNode {
 }
 
 export class SkeletonGenerator {
-    constructor(private workspaceRoot: string) { }
+    constructor(private workspaceRoot: string, private aiFormat: boolean = false) { }
 
     public generate() {
-        console.log('Hybrid Matrix: Generating Safe Skeleton...');
+        if (!this.aiFormat) console.log('Hybrid Matrix: Generating Safe Skeleton...');
         const hybridDir = path.join(this.workspaceRoot, '.hybrid');
         const treePath = path.join(hybridDir, 'hybrid-tree.json');
 
         if (!fs.existsSync(treePath)) {
-            console.error('Error: hybrid-tree.json not found in .hybrid/');
+            if (!this.aiFormat) console.error('Error: hybrid-tree.json not found in .hybrid/');
             return { error: 'No tree found' };
         }
 
@@ -103,7 +103,7 @@ export class SkeletonGenerator {
             }
         });
 
-        console.log(`✅ Skeleton Processed: ${createdCount} constructs created, ${skippedCount} existing skipped (Safe Mode).`);
+        if (!this.aiFormat) console.log(`✅ Skeleton Processed: ${createdCount} constructs created, ${skippedCount} existing skipped (Safe Mode).`);
         return { success: true, createdCount, skippedCount };
     }
 }
