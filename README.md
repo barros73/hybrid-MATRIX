@@ -1,4 +1,4 @@
-# 🧊 hybrid-MATRIX: v0.6.1 - 2026-03-04
+# 🧊 hybrid-MATRIX: v0.6.2 - 2026-03-05
 **The Deterministic Traceability Engine: Bridging Architectural Intent with Physical Code.**
 
 In large-scale codebases (30k+ lines, monorepos, hybrid ecosystems), maintaining consistency between what was designed and what was written is the greatest challenge. Tickets are closed, code mutates, and context is lost.
@@ -109,6 +109,11 @@ The primary directive for LLMs entering the system (Brownfield or Greenfield).
 - **Action**: Cross-references logical gaps against reality, generating an explicit, machine-instruction file: `MATRIX_INSTRUCTION.md`.
 - **New in v0.6**: Includes a **Spatial Mission Map (Mermaid)** and prioritizes **Architectural Conflicts** (Red Nodes) as Priority Zero.
 - **Example**: `hybrid-matrix bridge -w .`
+
+#### 6. `forge` (The CI/CD Bridge)
+Automates Git events based on the architectural status.
+- **Action**: When MATRIX confirms the state is `🟢 STABLE`, `forge` can automatically perform git add, commit, and tag operations to encapsulate the Golden Loop.
+- **Example**: `hybrid-matrix forge --commit`
 
 #### 6. `export-script` (Code-as-Context Generator)
 Translates the JSON architectural graphs into compilable "Ghost Skeletons" optimized for LLM inference.

@@ -96,7 +96,23 @@ export class ScriptExporter {
             }
         }
 
-        let contextHeader = `// @MATRIX-CONTEXT: Do not modify architectural boundaries. Implement logic only.\n${reqTag}\n`;
+        const ext = path.extname(absTarget);
+        let skeletonBody = "";
+        if (ext === '.ts' || ext === '.js') {
+            skeletonBody = this.renderTypescriptSkeleton(node, outgoingEdges, reqTag);
+        } else if (ext === '.rs') {
+            skeletonBody = this.renderRustSkeleton(node, outgoingEdges, reqTag);
+        } else if (ext === '.py') {
+            skeletonBody = this.renderPythonSkeleton(node, outgoingEdges, reqTag);
+        } else {
+            console.error(`Unsupported extension: ${ext}`);
+            return null;
+        }
+
+        const cis = this.calculateCIS(skeletonBody, node, outgoingEdges);
+        const cisColor = cis > 80 ? "🟢" : cis > 40 ? "🟡" : "🔴";
+
+        let contextHeader = `// @MATRIX-CONTEXT: Do not modify architectural boundaries. Implement logic only.\n${reqTag}\n// @MATRIX-CIS: ${cis}% ${cisColor}\n`;
 
         if (cluster && cluster.logicCores.length > 0) {
             contextHeader += `/* \n * 🌉 LOGICAL CLUSTER (Spatial Map Gravity)\n`;
@@ -108,20 +124,20 @@ export class ScriptExporter {
         }
         contextHeader += `\n`;
 
-        const ext = path.extname(absTarget);
-        let skeletonBody = "";
-        if (ext === '.ts' || ext === '.js') {
-            skeletonBody = this.renderTypescriptSkeleton(node, outgoingEdges, "");
-        } else if (ext === '.rs') {
-            skeletonBody = this.renderRustSkeleton(node, outgoingEdges, "");
-        } else if (ext === '.py') {
-            skeletonBody = this.renderPythonSkeleton(node, outgoingEdges, "");
-        } else {
-            console.error(`Unsupported extension: ${ext}`);
-            return null;
-        }
-
         return contextHeader + skeletonBody;
+    }
+
+    private calculateCIS(skeleton: string, node: any, edges: any[]): number {
+        // Simple Token Estimation (Characters / 4 is a common heuristic for code)
+        const estimatedTokens = Math.max(1, Math.floor(skeleton.length / 4));
+
+        // Signal: Implementation nodes (data/methods) + dependency edges
+        const signalCount = (node.data?.length || 0) + (node.outputs?.length || 0) + (edges.length || 0);
+
+        // Weighting: each signal item is worth approx 20 "conceptual tokens"
+        const signalDensity = (signalCount * 20) / estimatedTokens;
+
+        return Math.min(100, Math.floor(signalDensity * 100));
     }
 
     private renderTypescriptSkeleton(node: any, edges: any[], reqTag: string): string {

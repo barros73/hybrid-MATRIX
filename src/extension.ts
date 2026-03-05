@@ -22,6 +22,7 @@ import { IdManager } from './core/IdManager';
 import { MatrixValidator } from './core/MatrixValidator';
 import { TagInjector } from './injector/TagInjector';
 import { MatrixStore, MatrixLink } from './core/types';
+import { ForgeEngine } from './core/ForgeEngine';
 
 export function activate(context: vscode.ExtensionContext) {
     const workspaceRoot = vscode.workspace.workspaceFolders?.[0].uri.fsPath;
@@ -84,8 +85,19 @@ export function activate(context: vscode.ExtensionContext) {
         await vscode.commands.executeCommand('hybrid-matrix.sync');
     });
 
-    context.subscriptions.push(disposableSync);
     context.subscriptions.push(disposableInject);
+
+    let disposableForge = vscode.commands.registerCommand('hybrid-matrix.forge', async () => {
+        if (!workspaceRoot) return;
+        const confirm = await vscode.window.showInformationMessage('Hybrid Matrix: Trigger Forge (Git Commit/Tag)?', 'Yes', 'No');
+        if (confirm === 'Yes') {
+            const engine = new ForgeEngine();
+            engine.trigger(workspaceRoot, true);
+            vscode.window.showInformationMessage('Forge: Git events triggered successfully.');
+        }
+    });
+
+    context.subscriptions.push(disposableForge);
 }
 
 export function deactivate() { }

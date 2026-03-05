@@ -2,7 +2,7 @@
     "name": "hybrid-matrix",
     "displayName": "Hybrid Matrix",
     "description": "Deterministic Traceability Engine for the Hybrid Ecosystem",
-    "version": "0.6.1",
+    "version": "0.6.2",
     "license": "Apache-2.0",
     "bin": {
         "hybrid-matrix": "./dist/hybrid-MATRIX/src/cli.js"
@@ -21,6 +21,14 @@
             {
                 "command": "hybrid-matrix.inject",
                 "title": "Hybrid Matrix: Inject Tags"
+            },
+            {
+                "command": "hybrid-matrix.forge",
+                "title": "Hybrid Matrix: Forge (Trigger Git)"
+            },
+            {
+                "command": "hybrid-matrix.mcp",
+                "title": "Hybrid Matrix: Start MCP Server"
             }
         ]
     },

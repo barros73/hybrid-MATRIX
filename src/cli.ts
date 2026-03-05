@@ -29,13 +29,15 @@ import { ImpactSimulator } from './ai/ImpactSimulator';
 import { SkeletonGenerator } from './core/SkeletonGenerator';
 import { BridgeEngine } from './core/BridgeEngine';
 import { ScriptExporter } from './core/ScriptExporter';
+import { ForgeEngine } from './core/ForgeEngine';
+import { MCPServer } from './mcp-server';
 
 const program = new Command();
 
 program
     .name('hybrid-matrix')
     .description('Layer 2 of the Hybrid Ecosystem: Traceability Engine')
-    .version('0.6.1');
+    .version('0.6.2');
 
 program
     .option('-w, --workspace <path>', 'Workspace root path', process.cwd())
@@ -480,6 +482,65 @@ program
             if (options.aiFormat) console.log(JSON.stringify({ error: "Failed to export script" }));
             process.exit(1);
         }
+    });
+
+program
+    .command('forge')
+    .description('🌉 CI/CD Bridge — Automates Git events from MATRIX instructions')
+    .option('--commit', 'Actually perform git commit and tag if STABLE')
+    .action((cmdOptions) => {
+        const options = program.opts();
+        const workspaceRoot = getWorkspaceRoot(options);
+        const engine = new ForgeEngine();
+        engine.trigger(workspaceRoot, !!cmdOptions.commit);
+    });
+
+program
+    .command('mcp')
+    .description('Start MCP server over Stdio')
+    .action(() => {
+        const server = new MCPServer();
+        const options = program.opts();
+        const workspaceRoot = getWorkspaceRoot(options);
+
+        server.registerTool({
+            name: "matrix_sync",
+            description: "Sync IDs and validate links in the traceability matrix",
+            inputSchema: { type: "object", properties: {} },
+            handler: async () => {
+                return { content: [{ type: "text", text: "Matrix sync requested." }] };
+            }
+        });
+
+        server.registerTool({
+            name: "matrix_bridge",
+            description: "Cross-reference logic and reality to generate instructions",
+            inputSchema: { type: "object", properties: {} },
+            handler: async () => {
+                const bridgeEngine = new BridgeEngine(workspaceRoot);
+                await bridgeEngine.bridge();
+                return { content: [{ type: "text", text: "Matrix bridge (instructions) generated successfully." }] };
+            }
+        });
+
+        server.registerTool({
+            name: "matrix_forge",
+            description: "CI/CD Bridge — Automates Git events from MATRIX instructions",
+            inputSchema: {
+                type: "object",
+                properties: {
+                    commit: { type: "boolean" }
+                }
+            },
+            handler: async (args: any) => {
+                const engine = new ForgeEngine();
+                engine.trigger(workspaceRoot, !!args.commit);
+                return { content: [{ type: "text", text: `Forge trigger executed (commit: ${!!args.commit}).` }] };
+            }
+        });
+
+        server.start();
+        console.error("Hybrid Matrix MCP Server started");
     });
 
 program.parse(process.argv);

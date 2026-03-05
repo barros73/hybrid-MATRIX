@@ -65,6 +65,13 @@ export class BridgeEngine {
         const rcpData = JSON.parse(fs.readFileSync(rcpPath, 'utf8'));
         const codeNodes: any[] = rcpData.nodes || [];
         const edges: any[] = rcpData.edges || [];
+
+        // -- LOAD RUSTED REPORT IF EXISTS --
+        const rustedReportPath = path.join(hybridDir, 'hybrid-rusted-report.json');
+        const rustedReport = fs.existsSync(rustedReportPath)
+            ? JSON.parse(fs.readFileSync(rustedReportPath, 'utf-8'))
+            : null;
+
         const scriptExporter = new ScriptExporter(this.workspaceRoot);
         const scriptsDir = path.join(hybridDir, 'scripts');
         if (!fs.existsSync(scriptsDir)) fs.mkdirSync(scriptsDir, { recursive: true });
@@ -139,6 +146,21 @@ export class BridgeEngine {
                 const icon = c.severity === 'error' ? '🔴' : '🟡';
                 report += `- ${icon} **${c.category}**: ${c.description} (at \`${path.basename(c.location.file)}:L${c.location.line}\`)\n`;
                 if (c.suggestedFix) report += `  - 💡 *Fix*: ${c.suggestedFix}\n`;
+            });
+            report += `\n`;
+        }
+
+        // ─────────────────────────────────────────────────────────────
+        // SECTION 2b: RUSTED DIFFERENTIAL TESTING (🦀)
+        // ─────────────────────────────────────────────────────────────
+        if (rustedReport && Object.keys(rustedReport.nodes).length > 0) {
+            report += `#### 🦀 RUSTED: Differential Test Results\n`;
+            Object.entries(rustedReport.nodes).forEach(([id, result]: [string, any]) => {
+                const icon = result.status === 'STABLE' ? '🟢' : (result.status === 'CONFLICT' ? '🔴' : '⚪');
+                report += `- ${icon} **${id}**: ${result.status} (mean_diff: ${result.meanDiff.toExponential(2)})\n`;
+                if (result.status === 'CONFLICT') {
+                    report += `  - ⚖️ *Drift Detection*: The Rust implementation diverges from source behavior. Review logic in \`${id}\`.\n`;
+                }
             });
             report += `\n`;
         }
@@ -222,6 +244,14 @@ export class BridgeEngine {
 
             let color = '#ffff33'; // Yellow (Orphan)
             if (mappedFilePaths.has(cn.filePath)) color = '#33ff33'; // Green (Linked)
+
+            // Override with RUSTED status if available
+            if (rustedReport && (rustedReport.nodes[cn.id] || rustedReport.nodes[cn.index])) {
+                const r = rustedReport.nodes[cn.id] || rustedReport.nodes[cn.index];
+                if (r.status === 'STABLE') color = '#006400'; // Dark Green (Verified Stable)
+                if (r.status === 'CONFLICT') color = '#ff3333'; // Red (Test Failure)
+            }
+
             if (rcpData.conflicts?.some((c: any) => c.location.file === cn.filePath)) color = '#ff3333'; // Red (Conflict — overrides)
             if (candidates.some(c => c.node.filePath === cn.filePath)) color = '#9333ea'; // Purple (Candidate)
 
