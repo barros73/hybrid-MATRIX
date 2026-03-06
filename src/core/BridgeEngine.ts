@@ -4,10 +4,10 @@ import { ScriptExporter } from './ScriptExporter';
 import { SemanticEngine } from './SemanticEngine';
 
 export class BridgeEngine {
-    constructor(private workspaceRoot: string) { }
+    constructor(private workspaceRoot: string, private aiFormat: boolean = false) { }
 
     public async bridge() {
-        console.log('Hybrid Matrix: Executing Bridge Analysis...');
+        if (!this.aiFormat) console.log('Hybrid Matrix: Executing Bridge Analysis...');
         const hybridDir = path.join(this.workspaceRoot, '.hybrid');
         const treePath = path.join(hybridDir, 'hybrid-tree.json');
         const rcpPath = path.join(hybridDir, 'hybrid-rcp.json');
@@ -321,6 +321,7 @@ export class BridgeEngine {
         if (!fs.existsSync(hybridDir)) fs.mkdirSync(hybridDir, { recursive: true });
         const reportPath = path.join(hybridDir, 'MATRIX_INSTRUCTION.md');
         fs.writeFileSync(reportPath, report);
-        console.log(`✅ Instruction Generated: ${reportPath}`);
+        if (!this.aiFormat) console.log(`✅ Instruction Generated: ${reportPath}`);
+        return { status: 'success', instructionPath: reportPath };
     }
 }
